@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL注入靶场</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --danger-color: #dc2626;
+            --success-color: #16a34a;
+            --border-radius: 8px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+            --transition: all 0.2s ease;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            line-height: 1.5;
+            color: #1f2937;
+            background-color: #f3f4f6;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: white;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow);
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 1.875rem;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #6b7280;
+            max-width: 60ch;
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 1.5rem;
+            padding-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .status-badge {
+            margin-left: auto;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .status-vulnerable {
+            background-color: #fef2f2;
+            color: var(--danger-color);
+            border: 1px solid #fee2e2;
+        }
+
+        .status-safe {
+            background-color: #f0fdf4;
+            color: var(--success-color);
+            border: 1px solid #dcfce7;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+            position: relative;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            color: #374151;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.625rem;
+            border: 1px solid #e5e7eb;
+            border-radius: var(--border-radius);
+            background: #f9fafb;
+            color: #374151;
+            font-size: 0.875rem;
+            transition: var(--transition);
+        }
+
+        input:hover, select:hover, textarea:hover {
+            border-color: #d1d5db;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            ring: 2px solid var(--primary-color);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        button {
+            width: 100%;
+            padding: 0.625rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        button:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .result {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f9fafb;
+            border-radius: var(--border-radius);
+            font-size: 0.875rem;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+            transition: var(--transition);
+        }
+
+        .result:empty {
+            display: none;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            word-break: break-all;
+            margin: 0;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                grid-template-columns: 1fr;
+                padding: 0 1rem 2rem 1rem;
+            }
+            
+            .card {
+                margin-bottom: 1rem;
+            }
+            
+            .header {
+                padding: 1.5rem 1rem;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <h1>SQL注入靶场</h1>
+        <p>包含15个测试接口的SQL注入实验环境 - 用于Web安全测试学习和实践</p>
+    </header>
+
+    <div class="container">
+        <!-- 1. 用户登录 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">用户登录</h3>
+                <span class="status-badge status-vulnerable">存在注入</span>
+            </div>
+            <div class="input-group">
+                <label for="login-username">用户名</label>
+                <input type="text" id="login-username" placeholder="请输入用户名">
+            </div>
+            <div class="input-group">
+                <label for="login-password">密码</label>
+                <input type="password" id="login-password" placeholder="请输入密码">
+            </div>
+            <button onclick="userLogin()">登录</button>
+            <div id="login-result" class="result"></div>
+        </div>
+
+        <!-- 2. 用户注册 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">用户注册</h3>
+                <span class="status-badge status-safe">安全</span>
+            </div>
+            <div class="input-group">
+                <label for="reg-username">用户名</label>
+                <input type="text" id="reg-username" placeholder="请输入用户名">
+            </div>
+            <div class="input-group">
+                <label for="reg-password">密码</label>
+                <input type="password" id="reg-password" placeholder="请输入密码">
+            </div>
+            <div class="input-group">
+                <label for="reg-email">邮箱</label>
+                <input type="email" id="reg-email" placeholder="请输入邮箱">
+            </div>
+            <div class="input-group">
+                <label for="reg-phone">电话</label>
+                <input type="tel" id="reg-phone" placeholder="请输入电话">
+            </div>
+            <button onclick="userRegister()">注册</button>
+            <div id="register-result" class="result"></div>
+        </div>
+
+        <!-- 3. 商品搜索 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">商品搜索</h3>
+                <span class="status-badge status-vulnerable">存在注入</span>
+            </div>
+            <div class="input-group">
+                <label for="search-category">商品类别</label>
+                <select id="search-category">
+                    <option value="">请选择类别</option>
+                    <option value="electronics">电子产品</option>
+                    <option value="clothing">服装</option>
+                    <option value="books">图书</option>
+                    <option value="food">食品</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="price-min">最低价格</label>
+                <input type="number" id="price-min" placeholder="最低价格" min="0" step="0.01">
+            </div>
+            <div class="input-group">
+                <label for="price-max">最高价格</label>
+                <input type="number" id="price-max" placeholder="最高价格" min="0" step="0.01">
+            </div>
+            <div class="input-group">
+                <label for="sort-field">排序方式</label>
+                <select id="sort-field">
+                    <option value="price">价格</option>
+                    <option value="name">名称</option>
+                    <option value="sales">销量</option>
+                    <option value="rating">评分</option>
+                </select>
+            </div>
+            <button onclick="searchProducts()">搜索</button>
+            <div id="search-result" class="result"></div>
+        </div>
+
+        <!-- 4. 创建订单 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">创建订单</h3>
+                <span class="status-badge status-safe">安全</span>
+            </div>
+            <div class="input-group">
+                <label for="order-userid">用户ID</label>
+                <input type="number" id="order-userid" placeholder="请输入用户ID" min="1">
+            </div>
+            <div class="input-group">
+                <label for="order-items">商品列表</label>
+                <textarea id="order-items" rows="4" 
+                    placeholder='商品列表格式示例:
+[
+  {"product_id": 1, "quantity": 2, "price": 100},
+  {"product_id": 2, "quantity": 1, "price": 50}
+]'></textarea>
+            </div>
+            <button onclick="createOrder()">创建订单</button>
+            <div id="order-result" class="result"></div>
+        </div>
+
+        <!-- 5. 评论查询 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">评论查询</h3>
+                <span class="status-badge status-vulnerable">存在注入</span>
+            </div>
+            <div class="input-group">
+                <label for="comment-productid">商品ID</label>
+                <input type="number" id="comment-productid" placeholder="请输入商品ID" min="1">
+            </div>
+            <button onclick="getComments()">查询评论</button>
+            <div id="comments-result" class="result"></div>
+        </div>
+        <!-- 6. 更新用户资料 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">更新用户资料</h3>
+                <span class="status-badge status-safe">安全</span>
+            </div>
+            <div class="input-group">
+                <label for="profile-userid">用户ID</label>
+                <input type="number" id="profile-userid" placeholder="请输入用户ID" min="1">
+            </div>
+            <div class="input-group">
+                <label for="profile-email">新邮箱</label>
+                <input type="email" id="profile-email" placeholder="请输入新邮箱">
+            </div>
+            <div class="input-group">
+                <label for="profile-phone">新电话</label>
+                <input type="tel" id="profile-phone" placeholder="请输入新电话">
+            </div>
+            <button onclick="updateProfile()">更新资料</button>
+            <div id="profile-result" class="result"></div>
+        </div>
+
+        <!-- 7. 订单历史查询 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">订单历史查询</h3>
+                <span class="status-badge status-vulnerable">存在注入</span>
+            </div>
+            <div class="input-group">
+                <label for="history-userid">用户ID</label>
+                <input type="number" id="history-userid" placeholder="请输入用户ID" min="1">
+            </div>
+            <div class="input-group">
+                <label for="history-start">开始日期</label>
+                <input type="date" id="history-start">
+            </div>
+            <div class="input-group">
+                <label for="history-end">结束日期</label>
+                <input type="date" id="history-end">
+            </div>
+            <button onclick="orderHistory()">查询历史</button>
+            <div id="history-result" class="result"></div>
+        </div>
+
+        <!-- 8. 批量商品查询 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">批量商品查询</h3>
+                <span class="status-badge status-vulnerable">存在注入</span>
+            </div>
+            <div class="input-group">
+                <label for="batch-ids">商品ID列表</label>
+                <input type="text" id="batch-ids" placeholder="请输入商品ID，多个ID用逗号分隔">
+            </div>
+            <button onclick="batchProducts()">批量查询</button>
+            <div id="batch-result" class="result"></div>
+        </div>
+
+        <!-- 9. 更新购物车 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">更新购物车</h3>
+                <span class="status-badge status-safe">安全</span>
+            </div>
+            <div class="input-group">
+                <label for="cart-userid">用户ID</label>
+                <input type="number" id="cart-userid" placeholder="请输入用户ID" min="1">
+            </div>
+            <div class="input-group">
+                <label for="cart-items">购物车商品</label>
+                <textarea id="cart-items" rows="4" 
+                    placeholder='购物车商品格式示例:
+[
+  {"product_id": 1, "quantity": 2},
+  {"product_id": 2, "quantity": 1}
+]'></textarea>
+            </div>
+            <button onclick="updateCart()">更新购物车</button>
+            <div id="cart-result" class="result"></div>
+        </div>
+
+        <!-- 10. 优惠券验证 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">优惠券验证</h3>
+                <span class="status-badge status-vulnerable">存在注入</span>
+            </div>
+            <div class="input-group">
+                <label for="coupon-code">优惠券代码</label>
+                <input type="text" id="coupon-code" placeholder="请输入优惠券代码">
+            </div>
+            <button onclick="verifyCoupon()">验证优惠券</button>
+            <div id="coupon-result" class="result"></div>
+        </div>
+        <!-- 11. 用户搜索 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">用户搜索</h3>
+                <span class="status-badge status-vulnerable">存在注入</span>
+            </div>
+            <div class="input-group">
+                <label for="search-email">邮箱关键词</label>
+                <input type="text" id="search-email" placeholder="请输入邮箱关键词">
+            </div>
+            <div class="input-group">
+                <label for="search-status">用户状态</label>
+                <select id="search-status">
+                    <option value="">请选择状态</option>
+                    <option value="active">活跃</option>
+                    <option value="inactive">非活跃</option>
+                </select>
+            </div>
+            <button onclick="searchUsers()">搜索用户</button>
+            <div id="users-result" class="result"></div>
+        </div>
+
+        <!-- 12. 订单状态更新 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">订单状态更新</h3>
+                <span class="status-badge status-safe">安全</span>
+            </div>
+            <div class="input-group">
+                <label for="status-orderid">订单ID</label>
+                <input type="text" id="status-orderid" placeholder="请输入订单ID">
+            </div>
+            <div class="input-group">
+                <label for="status-userid">用户ID</label>
+                <input type="number" id="status-userid" placeholder="请输入用户ID" min="1">
+            </div>
+            <div class="input-group">
+                <label for="status-new">新状态</label>
+                <select id="status-new">
+                    <option value="">请选择状态</option>
+                    <option value="pending">待处理</option>
+                    <option value="shipped">已发货</option>
+                    <option value="delivered">已送达</option>
+                    <option value="cancelled">已取消</option>
+                </select>
+            </div>
+            <button onclick="updateOrderStatus()">更新状态</button>
+            <div id="status-result" class="result"></div>
+        </div>
+
+        <!-- 13. 商品评分统计 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">商品评分统计</h3>
+                <span class="status-badge status-vulnerable">存在注入</span>
+            </div>
+            <div class="input-group">
+                <label for="rating-category">商品类别</label>
+                <select id="rating-category">
+                    <option value="">请选择类别</option>
+                    <option value="electronics">电子产品</option>
+                    <option value="clothing">服装</option>
+                    <option value="books">图书</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="min-rating">最低评分</label>
+                <input type="number" id="min-rating" placeholder="请输入最低评分" min="1" max="5" step="0.5">
+            </div>
+            <button onclick="productRatings()">查询评分</button>
+            <div id="ratings-result" class="result"></div>
+        </div>
+
+        <!-- 14. 用户权限检查 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">用户权限检查</h3>
+                <span class="status-badge status-safe">安全</span>
+            </div>
+            <div class="input-group">
+                <label for="perm-userid">用户ID</label>
+                <input type="number" id="perm-userid" placeholder="请输入用户ID" min="1">
+            </div>
+            <div class="input-group">
+                <label for="perm-roleid">角色ID</label>
+                <input type="number" id="perm-roleid" placeholder="请输入角色ID" min="1">
+            </div>
+            <button onclick="checkPermission()">检查权限</button>
+            <div id="permission-result" class="result"></div>
+        </div>
+
+        <!-- 15. 交易记录查询 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">交易记录查询</h3>
+                <span class="status-badge status-vulnerable">存在注入</span>
+            </div>
+            <div class="input-group">
+                <label for="trans-userid">用户ID</label>
+                <input type="number" id="trans-userid" placeholder="请输入用户ID" min="1">
+            </div>
+            <div class="input-group">
+                <label for="trans-type">交易类型</label>
+                <select id="trans-type">
+                    <option value="">请选择类型</option>
+                    <option value="purchase">购买</option>
+                    <option value="refund">退款</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="trans-status">交易状态</label>
+                <select id="trans-status">
+                    <option value="">请选择状态</option>
+                    <option value="completed">已完成</option>
+                    <option value="pending">处理中</option>
+                    <option value="failed">失败</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="trans-min">最小金额</label>
+                <input type="number" id="trans-min" placeholder="请输入最小金额" min="0" step="0.01">
+            </div>
+            <div class="input-group">
+                <label for="trans-max">最大金额</label>
+                <input type="number" id="trans-max" placeholder="请输入最大金额" min="0" step="0.01">
+            </div>
+            <button onclick="transactionHistory()">查询交易</button>
+            <div id="transaction-result" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        // 通用API请求函数
+        async function apiRequest(action, data) {
+            try {
+                const response = await fetch(`api.php?action=${action}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                return result;
+            } catch (error) {
+                console.error('Error:', error);
+                return { 
+                    status: false, 
+                    message: '请求失败', 
+                    error: error.message 
+                };
+            }
+        }
+
+        // 通用结果显示函数
+        function showResult(elementId, result) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+            
+            // 添加状态样式
+            element.className = 'result ' + (result.status ? 'success' : 'error');
+            
+            // 滚动到结果区域
+            element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // 1. 用户登录
+        async function userLogin() {
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value.trim();
+            
+            if (!username || !password) {
+                showResult('login-result', {
+                    status: false,
+                    message: '用户名和密码不能为空'
+                });
+                return;
+            }
+
+            const data = { username, password };
+            const result = await apiRequest('user_login', data);
+            showResult('login-result', result);
+        }
+
+        // 2. 用户注册
+        async function userRegister() {
+            const username = document.getElementById('reg-username').value.trim();
+            const password = document.getElementById('reg-password').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const phone = document.getElementById('reg-phone').value.trim();
+
+            if (!username || !password || !email) {
+                showResult('register-result', {
+                    status: false,
+                    message: '用户名、密码和邮箱为必填项'
+                });
+                return;
+            }
+
+            const data = {
+                user: {
+                    credentials: { username, password },
+                    contact: { email, phone }
+                }
+            };
+            const result = await apiRequest('user_register', data);
+            showResult('register-result', result);
+        }
+
+        // 3. 商品搜索
+        async function searchProducts() {
+            const category = document.getElementById('search-category').value;
+            const priceMin = parseFloat(document.getElementById('price-min').value) || 0;
+            const priceMax = parseFloat(document.getElementById('price-max').value) || Infinity;
+            const sortField = document.getElementById('sort-field').value;
+
+            const data = {
+                filters: {
+                    category,
+                    price_range: [priceMin, priceMax]
+                },
+                sort: { field: sortField }
+            };
+            const result = await apiRequest('search_products', data);
+            showResult('search-result', result);
+        }
+
+        // 4. 创建订单
+        async function createOrder() {
+            const userId = parseInt(document.getElementById('order-userid').value);
+            let items;
+            
+            try {
+                items = JSON.parse(document.getElementById('order-items').value);
+            } catch (e) {
+                showResult('order-result', {
+                    status: false,
+                    message: '商品列表格式不正确，请检查JSON格式'
+                });
+                return;
+            }
+
+            if (!userId || !items.length) {
+                showResult('order-result', {
+                    status: false,
+                    message: '用户ID和商品列表不能为空'
+                });
+                return;
+            }
+
+            const data = { user_id: userId, items };
+            const result = await apiRequest('create_order', data);
+            showResult('order-result', result);
+        }
+
+        // 5. 评论查询
+        async function getComments() {
+            const productId = document.getElementById('comment-productid').value;
+            
+            if (!productId) {
+                showResult('comments-result', {
+                    status: false,
+                    message: '商品ID不能为空'
+                });
+                return;
+            }
+
+            const data = { product_id: productId };
+            const result = await apiRequest('get_comments', data);
+            showResult('comments-result', result);
+        }
+
+        // 6. 更新用户资料
+        async function updateProfile() {
+            const userId = parseInt(document.getElementById('profile-userid').value);
+            const email = document.getElementById('profile-email').value.trim();
+            const phone = document.getElementById('profile-phone').value.trim();
+
+            if (!userId || (!email && !phone)) {
+                showResult('profile-result', {
+                    status: false,
+                    message: '用户ID必填，且邮箱和电话至少填写一项'
+                });
+                return;
+            }
+
+            const data = {
+                profile: {
+                    user_id: userId,
+                    contact: { email, phone }
+                }
+            };
+            const result = await apiRequest('update_profile', data);
+            showResult('profile-result', result);
+        }
+
+        // 7. 订单历史查询
+        async function orderHistory() {
+            const userId = parseInt(document.getElementById('history-userid').value);
+            const startDate = document.getElementById('history-start').value;
+            const endDate = document.getElementById('history-end').value;
+
+            if (!userId) {
+                showResult('history-result', {
+                    status: false,
+                    message: '用户ID不能为空'
+                });
+                return;
+            }
+
+            const data = {
+                user_id: userId,
+                date_range: [startDate, endDate]
+            };
+            const result = await apiRequest('order_history', data);
+            showResult('history-result', result);
+        }
+
+        // 8. 批量商品查询
+        async function batchProducts() {
+            const idsString = document.getElementById('batch-ids').value.trim();
+            
+            if (!idsString) {
+                showResult('batch-result', {
+                    status: false,
+                    message: '商品ID列表不能为空'
+                });
+                return;
+            }
+
+            const productIds = idsString.split(',')
+                .map(id => parseInt(id.trim()))
+                .filter(id => !isNaN(id));
+
+            if (!productIds.length) {
+                showResult('batch-result', {
+                    status: false,
+                    message: '请输入有效的商品ID列表'
+                });
+                return;
+            }
+
+            const data = { product_ids: productIds };
+            const result = await apiRequest('batch_products', data);
+            showResult('batch-result', result);
+        }
+
+        // 9. 更新购物车
+        async function updateCart() {
+            const userId = parseInt(document.getElementById('cart-userid').value);
+            let cartItems;
+
+            try {
+                cartItems = JSON.parse(document.getElementById('cart-items').value);
+            } catch (e) {
+                showResult('cart-result', {
+                    status: false,
+                    message: '购物车商品格式不正确，请检查JSON格式'
+                });
+                return;
+            }
+
+            if (!userId || !cartItems.length) {
+                showResult('cart-result', {
+                    status: false,
+                    message: '用户ID和购物车商品不能为空'
+                });
+                return;
+            }
+
+            const data = {
+                user_id: userId,
+                cart_items: cartItems
+            };
+            const result = await apiRequest('update_cart', data);
+            showResult('cart-result', result);
+        }
+
+        // 10. 优惠券验证
+        async function verifyCoupon() {
+            const code = document.getElementById('coupon-code').value.trim();
+            
+            if (!code) {
+                showResult('coupon-result', {
+                    status: false,
+                    message: '优惠券代码不能为空'
+                });
+                return;
+            }
+
+            const data = { code };
+            const result = await apiRequest('verify_coupon', data);
+            showResult('coupon-result', result);
+        }
+        // 11. 用户搜索
+        async function searchUsers() {
+            const email = document.getElementById('search-email').value.trim();
+            const status = document.getElementById('search-status').value;
+
+            if (!email && !status) {
+                showResult('users-result', {
+                    status: false,
+                    message: '请至少输入一个搜索条件'
+                });
+                return;
+            }
+
+            const data = {
+                filters: { email, status }
+            };
+            const result = await apiRequest('search_users', data);
+            showResult('users-result', result);
+        }
+
+        // 12. 订单状态更新
+        async function updateOrderStatus() {
+            const orderId = document.getElementById('status-orderid').value.trim();
+            const userId = parseInt(document.getElementById('status-userid').value);
+            const newStatus = document.getElementById('status-new').value;
+
+            if (!orderId || !userId || !newStatus) {
+                showResult('status-result', {
+                    status: false,
+                    message: '订单ID、用户ID和新状态都不能为空'
+                });
+                return;
+            }
+
+            const data = {
+                order_id: orderId,
+                user_id: userId,
+                status: {
+                    new_status: newStatus,
+                    reason: "Status update by user"
+                }
+            };
+            const result = await apiRequest('update_order_status', data);
+            showResult('status-result', result);
+        }
+
+        // 13. 商品评分统计
+        async function productRatings() {
+            const category = document.getElementById('rating-category').value;
+            const minRating = parseFloat(document.getElementById('min-rating').value);
+
+            if (!category || isNaN(minRating)) {
+                showResult('ratings-result', {
+                    status: false,
+                    message: '商品类别和最低评分都不能为空'
+                });
+                return;
+            }
+
+            const data = {
+                category,
+                min_rating: minRating
+            };
+            const result = await apiRequest('product_ratings', data);
+            showResult('ratings-result', result);
+        }
+
+        // 14. 用户权限检查
+        async function checkPermission() {
+            const userId = parseInt(document.getElementById('perm-userid').value);
+            const roleId = parseInt(document.getElementById('perm-roleid').value);
+
+            if (!userId || !roleId) {
+                showResult('permission-result', {
+                    status: false,
+                    message: '用户ID和角色ID都不能为空'
+                });
+                return;
+            }
+
+            const data = {
+                auth: {
+                    user_id: userId,
+                    role_id: roleId,
+                    resource: "orders"
+                }
+            };
+            const result = await apiRequest('check_permission', data);
+            showResult('permission-result', result);
+        }
+
+        // 15. 交易记录查询
+        async function transactionHistory() {
+            const userId = parseInt(document.getElementById('trans-userid').value);
+            const type = document.getElementById('trans-type').value;
+            const status = document.getElementById('trans-status').value;
+            const minAmount = parseFloat(document.getElementById('trans-min').value) || 0;
+            const maxAmount = parseFloat(document.getElementById('trans-max').value) || Infinity;
+
+            if (!userId) {
+                showResult('transaction-result', {
+                    status: false,
+                    message: '用户ID不能为空'
+                });
+                return;
+            }
+
+            const data = {
+                user_id: userId,
+                filters: {
+                    type,
+                    status,
+                    amount_range: [minAmount, maxAmount]
+                }
+            };
+            const result = await apiRequest('transaction_history', data);
+            showResult('transaction-result', result);
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置所有日期输入框的最大值为今天
+            const today = new Date().toISOString().split('T')[0];
+            document.querySelectorAll('input[type="date"]').forEach(input => {
+                input.max = today;
+            });
+
+            // 为所有输入框添加回车键提交功能
+            document.querySelectorAll('input, textarea').forEach(input => {
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        const card = this.closest('.card');
+                        if (card) {
+                            const button = card.querySelector('button');
+                            if (button) {
+                                button.click();
+                            }
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

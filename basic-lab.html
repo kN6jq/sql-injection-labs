@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <title>SQL注入测试实验室</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .title {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .modules {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .module {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .module-title {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .module-name {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .status {
+            margin-left: auto;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+
+        .unsafe {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .safe {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #2196f3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #1976d2;
+        }
+
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+            word-break: break-all;
+        }
+
+        @media (max-width: 600px) {
+            .modules {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">SQL注入测试实验室</h1>
+            <p>包含15个不同类型的SQL注入测试点</p>
+        </div>
+
+        <div class="modules">
+            <!-- 1. 不安全的用户登录 -->
+            <div class="module">
+                <div class="module-title">
+                    <span class="module-name">用户登录</span>
+                    <span class="status unsafe">不安全</span>
+                </div>
+                <div>
+                    <input type="text" id="login-username" placeholder="用户名">
+                    <input type="password" id="login-password" placeholder="密码">
+                    <button onclick="testLogin()">测试</button>
+                    <div id="login-result" class="result"></div>
+                </div>
+            </div>
+
+            <!-- 2. 安全的订单查询 -->
+            <div class="module">
+                <div class="module-title">
+                    <span class="module-name">订单查询</span>
+                    <span class="status safe">安全</span>
+                </div>
+                <div>
+                    <input type="text" id="order-id" placeholder="订单ID">
+                    <input type="text" id="user-id" placeholder="用户ID">
+                    <button onclick="getOrder()">查询</button>
+                    <div id="order-result" class="result"></div>
+                </div>
+            </div>
+
+            <!-- 3. 不安全的商品排序 -->
+            <div class="module">
+                <div class="module-title">
+                    <span class="module-name">商品排序</span>
+                    <span class="status unsafe">不安全</span>
+                </div>
+                <div>
+                    <input type="text" id="sort-field" placeholder="排序字段">
+                    <select id="sort-dir">
+                        <option value="ASC">升序</option>
+                        <option value="DESC">降序</option>
+                    </select>
+                    <button onclick="sortProducts()">排序</button>
+                    <div id="sort-result" class="result"></div>
+                </div>
+            </div>
+
+            <!-- 在前面的 modules div 中继续添加 -->
+
+            <!-- 4. 安全的评论添加 -->
+            <div class="module">
+                <div class="module-title">
+                    <span class="module-name">添加评论</span>
+                    <span class="status safe">安全</span>
+                </div>
+                <div>
+                    <input type="number" id="comment-pid" placeholder="商品ID">
+                    <input type="number" id="comment-uid" placeholder="用户ID">
+                    <input type="text" id="comment-content" placeholder="评论内容">
+                    <button onclick="addComment()">提交评论</button>
+                    <div id="comment-result" class="result"></div>
+                </div>
+            </div>
+
+            <!-- 5. 不安全的优惠券验证 -->
+            <div class="module">
+                <div class="module-title">
+                    <span class="module-name">优惠券验证</span>
+                    <span class="status unsafe">不安全</span>
+                </div>
+                <div>
+                    <input type="text" id="coupon-code" placeholder="优惠券代码">
+                    <button onclick="verifyCoupon()">验证</button>
+                    <div id="coupon-result" class="result"></div>
+                </div>
+            </div>
+
+            <!-- 6. 不安全的用户搜索 -->
+            <div class="module">
+                <div class="module-title">
+                    <span class="module-name">用户搜索</span>
+                    <span class="status unsafe">不安全</span>
+                </div>
+                <div>
+                    <input type="email" id="search-email" placeholder="邮箱关键词">
+                    <button onclick="searchUsers()">搜索</button>
+                    <div id="search-result" class="result"></div>
+                </div>
+            </div>
+
+            <!-- 7. 安全的购物车更新 -->
+            <div class="module">
+                <div class="module-title">
+                    <span class="module-name">购物车更新</span>
+                    <span class="status safe">安全</span>
+                </div>
+                <div>
+                    <input type="number" id="cart-uid" placeholder="用户ID">
+                    <input type="number" id="cart-pid" placeholder="商品ID">
+                    <input type="number" id="cart-quantity" placeholder="数量">
+                    <button onclick="updateCart()">更新</button>
+                    <div id="cart-result" class="result"></div>
+                </div>
+            </div>
+
+            <!-- 8. 不安全的订单查询 -->
+            <div class="module">
+                <div class="module-title">
+                    <span class="module-name">订单历史</span>
+                    <span class="status unsafe">不安全</span>
+                </div>
+                <div>
+                    <input type="text" id="order-status" placeholder="订单状态(如: 'pending','shipped')">
+                    <button onclick="orderHistory()">查询</button>
+                    <div id="history-result" class="result"></div>
+                </div>
+            </div>
+
+            <!-- 9. 安全的用户资料更新 -->
+            <div class="module">
+                <div class="module-title">
+                    <span class="module-name">资料更新</span>
+                    <span class="status safe">安全</span>
+                </div>
+                <div>
+                    <input type="number" id="profile-uid" placeholder="用户ID">
+                    <input type="email" id="profile-email" placeholder="新邮箱">
+                    <input type="tel" id="profile-phone" placeholder="新电话">
+                    <button onclick="updateProfile()">更新</button>
+                    <div id="profile-result" class="result"></div>
+                </div>
+            </div>
+
+            <!-- 10. 不安全的商品分类统计 -->
+            <div class="module">
+                <div class="module-title">
+                    <span class="module-name">分类统计</span>
+                    <span class="status unsafe">不安全</span>
+                </div>
+                <div>
+                    <input type="text" id="stats-field" placeholder="统计字段">
+                    <button onclick="categoryStats()">统计</button>
+                    <div id="stats-result" class="result"></div>
+                </div>
+            </div>
+
+            <!-- 11. 安全的权限检查 -->
+            <div class="module">
+                <div class="module-title">
+                    <span class="module-name">权限检查</span>
+                    <span class="status safe">安全</span>
+                </div>
+                <div>
+                    <input type="number" id="perm-uid" placeholder="用户ID">
+                    <input type="text" id="perm-role" placeholder="角色名称">
+                    <button onclick="checkPermission()">检查</button>
+                    <div id="perm-result" class="result"></div>
+                </div>
+            </div>
+
+            <!-- 12. 不安全的商品评分 -->
+            <div class="module">
+                <div class="module-title">
+                    <span class="module-name">商品评分</span>
+                    <span class="status unsafe">不安全</span>
+                </div>
+                <div>
+                    <input type="number" id="rating-min" placeholder="最低评分">
+                    <button onclick="productRatings()">查询</button>
+                    <div id="rating-result" class="result"></div>
+                </div>
+            </div>
+
+            <!-- 13. 不安全的分页查询 -->
+            <div class="module">
+                <div class="module-title">
+                    <span class="module-name">商品分页</span>
+                    <span class="status unsafe">不安全</span>
+                </div>
+                <div>
+                    <input type="number" id="page-num" placeholder="页码">
+                    <input type="number" id="page-size" placeholder="每页数量">
+                    <button onclick="listProducts()">查询</button>
+                    <div id="page-result" class="result"></div>
+                </div>
+            </div>
+
+            <!-- 14. 安全的子查询 -->
+            <div class="module">
+                <div class="module-title">
+                    <span class="module-name">高价商品</span>
+                    <span class="status safe">安全</span>
+                </div>
+                <div>
+                    <input type="text" id="exp-category" placeholder="商品分类">
+                    <button onclick="expensiveProducts()">查询</button>
+                    <div id="exp-result" class="result"></div>
+                </div>
+            </div>
+
+            <!-- 15. 不安全的用户删除 -->
+            <div class="module">
+                <div class="module-title">
+                    <span class="module-name">用户删除</span>
+                    <span class="status unsafe">不安全</span>
+                </div>
+                <div>
+                    <input type="number" id="del-uid" placeholder="用户ID">
+                    <button onclick="deleteUser()">删除</button>
+                    <div id="del-result" class="result"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 通用的API请求函数
+        async function fetchAPI(url, method = 'GET', data = null) {
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                };
+                if (data) {
+                    const params = new URLSearchParams();
+                    for (let key in data) {
+                        params.append(key, data[key]);
+                    }
+                    options.body = params;
+                }
+                const response = await fetch(url, options);
+                return await response.json();
+            } catch (error) {
+                return { error: error.message };
+            }
+        }
+
+        // 测试函数
+        async function testLogin() {
+            const result = await fetchAPI('api2.php', 'POST', {
+                action: 'user_login',
+                username: document.getElementById('login-username').value,
+                password: document.getElementById('login-password').value
+            });
+            document.getElementById('login-result').innerText = JSON.stringify(result, null, 2);
+        }
+
+        async function getOrder() {
+            const result = await fetchAPI(`api2.php?action=get_order&order_id=${document.getElementById('order-id').value}&user_id=${document.getElementById('user-id').value}`);
+            document.getElementById('order-result').innerText = JSON.stringify(result, null, 2);
+        }
+
+        async function sortProducts() {
+            const result = await fetchAPI(`api2.php?action=sort_products&sort_field=${document.getElementById('sort-field').value}&sort_dir=${document.getElementById('sort-dir').value}`);
+            document.getElementById('sort-result').innerText = JSON.stringify(result, null, 2);
+        }
+
+        // 继续添加测试函数...
+        async function addComment() {
+            const result = await fetchAPI('api2.php', 'POST', {
+                action: 'add_comment',
+                product_id: document.getElementById('comment-pid').value,
+                user_id: document.getElementById('comment-uid').value,
+                content: document.getElementById('comment-content').value
+            });
+            document.getElementById('comment-result').innerText = JSON.stringify(result, null, 2);
+        }
+
+        async function verifyCoupon() {
+            const result = await fetchAPI(`api2.php?action=verify_coupon&code=${document.getElementById('coupon-code').value}`);
+            document.getElementById('coupon-result').innerText = JSON.stringify(result, null, 2);
+        }
+
+        async function searchUsers() {
+            const result = await fetchAPI(`api2.php?action=search_users&email=${document.getElementById('search-email').value}`);
+            document.getElementById('search-result').innerText = JSON.stringify(result, null, 2);
+        }
+
+        async function updateCart() {
+            const result = await fetchAPI('api2.php', 'POST', {
+                action: 'update_cart',
+                user_id: document.getElementById('cart-uid').value,
+                product_id: document.getElementById('cart-pid').value,
+                quantity: document.getElementById('cart-quantity').value
+            });
+            document.getElementById('cart-result').innerText = JSON.stringify(result, null, 2);
+        }
+
+        async function orderHistory() {
+            const result = await fetchAPI(`api2.php?action=order_history&status=${document.getElementById('order-status').value}`);
+            document.getElementById('history-result').innerText = JSON.stringify(result, null, 2);
+        }
+
+        async function updateProfile() {
+            const result = await fetchAPI('api2.php', 'POST', {
+                action: 'update_profile',
+                user_id: document.getElementById('profile-uid').value,
+                email: document.getElementById('profile-email').value,
+                phone: document.getElementById('profile-phone').value
+            });
+            document.getElementById('profile-result').innerText = JSON.stringify(result, null, 2);
+        }
+
+        async function categoryStats() {
+            const result = await fetchAPI(`api2.php?action=category_stats&field=${document.getElementById('stats-field').value}`);
+            document.getElementById('stats-result').innerText = JSON.stringify(result, null, 2);
+        }
+
+        async function checkPermission() {
+            const result = await fetchAPI('api2.php', 'POST', {
+                action: 'check_permission',
+                user_id: document.getElementById('perm-uid').value,
+                role: document.getElementById('perm-role').value
+            });
+            document.getElementById('perm-result').innerText = JSON.stringify(result, null, 2);
+        }
+
+        async function productRatings() {
+            const result = await fetchAPI(`api2.php?action=product_ratings&min_rating=${document.getElementById('rating-min').value}`);
+            document.getElementById('rating-result').innerText = JSON.stringify(result, null, 2);
+        }
+
+        async function listProducts() {
+            const result = await fetchAPI(`api2.php?action=list_products&page=${document.getElementById('page-num').value}&limit=${document.getElementById('page-size').value}`);
+            document.getElementById('page-result').innerText = JSON.stringify(result, null, 2);
+        }
+
+        async function expensiveProducts() {
+            const result = await fetchAPI(`api2.php?action=expensive_products&category=${encodeURIComponent(document.getElementById('exp-category').value)}`);
+            document.getElementById('exp-result').innerText = JSON.stringify(result, null, 2);
+        }
+
+        async function deleteUser() {
+            const result = await fetchAPI('api2.php', 'POST', {
+                action: 'delete_user',
+                user_id: document.getElementById('del-uid').value
+            });
+            document.getElementById('del-result').innerText = JSON.stringify(result, null, 2);
+        }
+
+        
+    </script>
+</body>
+
+</html>
